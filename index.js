@@ -32,6 +32,16 @@ async function run() {
       .db("VocalStudioDB")
       .collection("selected");
     const usersCollection = client.db("VocalStudioDB").collection("users");
+    const pendingCollection = client
+      .db("VocalStudioDB")
+      .collection("pendingClasses");
+
+    app.post("/pendingClasses", async (req, res) => {
+      const item = req.body;
+      console.log(item);
+      const result = await pendingCollection.insertOne(item);
+      res.send(result);
+    });
 
     app.get("/users", async (req, res) => {
       const result = await usersCollection.find().toArray();
