@@ -36,6 +36,19 @@ async function run() {
       .db("VocalStudioDB")
       .collection("pendingClasses");
 
+    app.get("/pendingClassesDetails", async (req, res) => {
+      const result = await pendingCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.get("/pendingClasses", async (req, res) => {
+      const email = req.query.email;
+      console.log(email);
+      const query = { email: email };
+      const result = await pendingCollection.find(query).toArray();
+      res.send(result);
+    });
+
     app.post("/pendingClasses", async (req, res) => {
       const item = req.body;
       console.log(item);
