@@ -1,15 +1,33 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5000;
-const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
+require("dotenv").config();
+// const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 
 app.use(cors());
 app.use(express.json());
 
+function verifyJWT(req, res, next) {
+  const authorization = req.headers.authorization;
+  console.log(authorization);
+  if (!authorization) {
+    return res.status(401).send({ error: "unauthorized access!" });
+  }
+  const token = authorization.split(" ")[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
+    console.log({ err });
+    if (err) {
+      return res.status(403).send({ error: "unauthorized access!" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+}
+
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-const uri =
-  "mongodb+srv://vocalAdmin:D6MQmYH2jKntjyCb@cluster0.miqdtcr.mongodb.net/?retryWrites=true&w=majority";
+const uri = `mongodb+srv://${process.env.ADMIN_USER}:${process.env.ADMIN_PASS}@cluster0.miqdtcr.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -33,6 +51,15 @@ async function run() {
     const pendingCollection = client
       .db("VocalStudioDB")
       .collection("pendingClasses");
+
+    app.post("/jwt", async (req, res) => {
+      const body = req.body;
+      console.log(body);
+      const token = jwt.sign(body, process.env.ACCESS_TOKEN, {
+        expiresIn: "1h",
+      });
+      res.send({ token });
+    });
 
     app.get("/pendingClassesDetails", async (req, res) => {
       const result = await pendingCollection.find().toArray();
@@ -101,7 +128,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/selectedItems", async (req, res) => {
+    app.get("/selectedItems", verifyJWT, async (req, res) => {
       const email = req.query.userEmail;
       console.log(email);
       const query = { userEmail: email };
@@ -129,20 +156,20 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/create-payment-intent", async (req, res) => {
-      const { price } = req.body;
-      const amount = price * 100;
+    // app.post("/create-payment-intent", async (req, res) => {
+    //   const { price } = req.body;
+    //   const amount = price * 100;
 
-      // Create a PaymentIntent with the order amount and currency
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amount,
-        currency: "usd",
-        payment_method_types: ["cards"],
-      });
-      res.send({
-        clientSecret: paymentIntent.client_secret,
-      });
-    });
+    //   // Create a PaymentIntent with the order amount and currency
+    //   const paymentIntent = await stripe.paymentIntents.create({
+    //     amount: amount,
+    //     currency: "usd",
+    //     payment_method_types: ["cards"],
+    //   });
+    //   res.send({
+    //     clientSecret: paymentIntent.client_secret,
+    //   });
+    // });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
