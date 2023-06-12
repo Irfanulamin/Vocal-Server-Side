@@ -4,7 +4,7 @@ const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5000;
 require("dotenv").config();
-// const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 
 app.use(cors());
 app.use(express.json());
@@ -29,7 +29,6 @@ function verifyJWT(req, res, next) {
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.ADMIN_USER}:${process.env.ADMIN_PASS}@cluster0.miqdtcr.mongodb.net/?retryWrites=true&w=majority`;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -40,7 +39,6 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
     const classCollection = client.db("VocalStudioDB").collection("classes");
@@ -51,6 +49,7 @@ async function run() {
     const pendingCollection = client
       .db("VocalStudioDB")
       .collection("pendingClasses");
+    const paymentCollection = client.db("VocalStudioDB").collection("payments");
 
     app.post("/jwt", async (req, res) => {
       const body = req.body;
@@ -130,7 +129,12 @@ async function run() {
 
     app.get("/selectedItems", verifyJWT, async (req, res) => {
       const email = req.query.userEmail;
-      console.log(email);
+
+      if (req.decoded.email !== email) {
+        console.log(req.decoded.Usermail);
+        return res.status(403).send({ error: "unauthorized access!" });
+      }
+
       const query = { userEmail: email };
       const result = await selectedCollection.find(query).toArray();
       res.send(result);
@@ -156,20 +160,25 @@ async function run() {
       res.send(result);
     });
 
-    // app.post("/create-payment-intent", async (req, res) => {
-    //   const { price } = req.body;
-    //   const amount = price * 100;
+    app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+      const amount = req.body.totalPrice * 100;
 
-    //   // Create a PaymentIntent with the order amount and currency
-    //   const paymentIntent = await stripe.paymentIntents.create({
-    //     amount: amount,
-    //     currency: "usd",
-    //     payment_method_types: ["cards"],
-    //   });
-    //   res.send({
-    //     clientSecret: paymentIntent.client_secret,
-    //   });
-    // });
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+
+    app.post("/payments", async (req, res) => {
+      const payment = req.body;
+      const result = await paymentCollection.insertOne(payment);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
