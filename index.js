@@ -80,6 +80,67 @@ async function run() {
       res.send(result);
     });
 
+    app.put("/pendingClasses", async (req, res) => {
+      const userEmail = req.query.email;
+      const { class_name, class_image, available_seats, price } = req.body;
+
+      await pendingCollection.findOneAndUpdate(
+        { email: userEmail },
+        {
+          $set: {
+            class_name: class_name,
+            class_image: class_image,
+            available_seats: available_seats,
+            price: price,
+          },
+        }
+      );
+
+      const result = await pendingCollection.findOne({ email: userEmail });
+      res.send(result);
+    });
+
+    app.patch("/pendingClass/approve/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: "Approved",
+        },
+      };
+
+      const result = await pendingCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+    app.patch("/pendingClass/deny/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: "Denied",
+        },
+      };
+
+      const result = await pendingCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+    app.patch("/pendingClass/feedback/:id", async (req, res) => {
+      const id = req.params.id;
+      const feedback = req.body.feedback;
+      console.log(feedback);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          feedback: feedback,
+        },
+      };
+
+      const result = await pendingCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
     app.get("/users", async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
@@ -160,8 +221,19 @@ async function run() {
       res.send(result);
     });
 
+    app.post("/classes", async (req, res) => {
+      const item = req.body;
+      console.log(item);
+      const result = await classCollection.insertOne(item);
+      res.send(result);
+    });
+
     app.post("/create-payment-intent", verifyJWT, async (req, res) => {
       const amount = req.body.totalPrice * 100;
+
+      if (amount === 0) {
+        return;
+      }
 
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
@@ -177,6 +249,13 @@ async function run() {
     app.post("/payments", async (req, res) => {
       const payment = req.body;
       const result = await paymentCollection.insertOne(payment);
+      res.send(result);
+    });
+
+    app.get("/payments", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await paymentCollection.find(query).toArray();
       res.send(result);
     });
 
