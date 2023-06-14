@@ -39,7 +39,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
 
     const classCollection = client.db("VocalStudioDB").collection("classes");
     const selectedCollection = client
@@ -286,20 +286,8 @@ async function run() {
 
     app.post("/payments", async (req, res) => {
       const payment = req.body;
-      const query = {
-        _id: { $in: payment.items.map((id) => new ObjectId(id)) },
-      };
-
-      const updateDoc = {
-        $inc: {
-          available_seats: -1,
-        },
-      };
-
-      const classResults = await classCollection.updateMany(query, updateDoc);
       const paymentResult = await paymentCollection.insertOne(payment);
-
-      res.send({ paymentResult, classResults });
+      res.send(paymentResult);
     });
 
     app.get("/payments", async (req, res) => {
