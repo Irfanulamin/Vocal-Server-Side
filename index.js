@@ -6,7 +6,13 @@ const port = process.env.PORT || 5000;
 require("dotenv").config();
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 
-app.use(cors());
+const corsOptions = {
+  origin: "*",
+  credentials: true,
+  optionSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 function verifyJWT(req, res, next) {
@@ -283,13 +289,12 @@ async function run() {
         clientSecret: paymentIntent.client_secret,
       });
     });
-
     app.post("/payments", async (req, res) => {
       const payment = req.body;
+      console.log(payment);
       const paymentResult = await paymentCollection.insertOne(payment);
       res.send(paymentResult);
     });
-
     app.get("/payments", async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
